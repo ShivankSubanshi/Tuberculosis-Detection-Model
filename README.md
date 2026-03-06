@@ -94,7 +94,7 @@ Tuberculosis-Detection-Model/
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/Prajwal2212/Tuberculosis-Detection-Model.git
+git clone https://github.com/ShivankSubanshi/Tuberculosis-Detection-Model.git
 cd Tuberculosis-Detection-Model
 ```
 
