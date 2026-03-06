@@ -1,0 +1,26 @@
+# Dataset images
+TB_Chest_Radiography_Database/
+
+# Trained model
+tb_detection_app/tb_model.h5
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Anaconda / DB files
+anaconda_projects/
+
+# Metadata excel
+Tuberculosis.metadata.xlsx
+Normal.metadata.xlsx
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TBDetect — AI-Powered Tuberculosis Screening</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Design tokens ──────────────────────────────────────── */
+    :root {
+      --bg:        #0a0e17;
+      --surface:   #111827;
+      --card:      #161d2e;
+      --border:    #1e2d45;
+      --accent:    #38bdf8;
+      --accent2:   #818cf8;
+      --danger:    #f87171;
+      --safe:      #34d399;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --glow:      rgba(56,189,248,.15);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated grid background ───────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(56,189,248,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* ── Glowing orb ────────────────────────────────────────── */
+    .orb {
+      position: fixed;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56,189,248,.08) 0%, transparent 70%);
+      top: -200px; right: -200px;
+      pointer-events: none; z-index: 0;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .orb2 {
+      top: auto; bottom: -200px; right: auto; left: -200px;
+      background: radial-gradient(circle, rgba(129,140,248,.07) 0%, transparent 70%);
+      animation-delay: -6s;
+    }
+    @keyframes drift { to { transform: translate(40px, 30px) scale(1.05); } }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .page { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.5rem 0 3.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 3rem;
+      animation: fadeDown .7s ease both;
+    }
+    .logo {
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .logo-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: grid; place-items: center; font-size: 1.2rem;
+      box-shadow: 0 0 20px rgba(56,189,248,.3);
+    }
+    .logo-text { font-family: 'DM Serif Display', serif; font-size: 1.4rem; letter-spacing: -.02em; }
+    .logo-sub  { font-size: .7rem; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+    .badge {
+      font-family: 'DM Mono', monospace; font-size: .7rem;
+      padding: .3rem .8rem; border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted); background: var(--surface);
+      letter-spacing: .06em;
+    }
+
+    /* ── Hero ───────────────────────────────────────────────── */
+    .hero {
+      text-align: center; margin-bottom: 3.5rem;
+      animation: fadeUp .8s ease both .15s;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      line-height: 1.15;
+      background: linear-gradient(135deg, #e2e8f0 30%, var(--accent) 70%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 1rem;
+    }
+    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 520px; margin: 0 auto; line-height: 1.7; }
+
+    /* ── Upload card ─────────────────────────────────────────── */
+    .upload-section { animation: fadeUp .8s ease both .3s; }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      background: var(--card);
+      padding: 3.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .3s, background .3s, box-shadow .3s;
+      position: relative; overflow: hidden;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(56,189,248,.04);
+      box-shadow: 0 0 40px var(--glow);
+    }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2;
+    }
+    .drop-icon {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: linear-gradient(135deg, rgba(56,189,248,.15), rgba(129,140,248,.15));
+      border: 1px solid rgba(56,189,248,.2);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.25rem; font-size: 1.8rem;
+      transition: transform .3s;
+    }
+    .drop-zone:hover .drop-icon { transform: scale(1.08) translateY(-3px); }
+    .drop-zone h3 { font-size: 1.05rem; font-weight: 500; margin-bottom: .4rem; }
+    .drop-zone p  { color: var(--muted); font-size: .88rem; }
+    .drop-zone .formats {
+      display: inline-flex; gap: .4rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center;
+    }
+    .formats span {
+      font-family: 'DM Mono', monospace; font-size: .68rem;
+      padding: .2rem .55rem; border-radius: 5px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    }
+
+    /* ── Analyze button ──────────────────────────────────────── */
+    .btn-analyze {
+      display: flex; align-items: center; justify-content: center; gap: .6rem;
+      width: 100%; margin-top: 1.2rem; padding: 1rem;
+      border-radius: 14px; border: none; cursor: pointer;
+      font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0a0e17;
+      box-shadow: 0 8px 30px rgba(56,189,248,.25);
+      transition: opacity .2s, transform .2s, box-shadow .2s;
+    }
+    .btn-analyze:hover:not(:disabled) {
+      opacity: .9; transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(56,189,248,.35);
+    }
+    .btn-analyze:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    /* ── Spinner ─────────────────────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 2px solid rgba(10,14,23,.3);
+      border-top-color: #0a0e17;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Preview strip ───────────────────────────────────────── */
+    #preview-strip {
+      display: none; margin-top: 1.2rem; border-radius: 14px; overflow: hidden;
+      border: 1px solid var(--border); position: relative;
+    }
+    #preview-strip img { width: 100%; max-height: 280px; object-fit: contain; background: var(--surface); }
+    .remove-btn {
+      position: absolute; top: .6rem; right: .6rem;
+      background: rgba(10,14,23,.7); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 8px; padding: .3rem .6rem;
+      cursor: pointer; font-size: .75rem; font-family: 'DM Mono', monospace;
+      transition: color .2s;
+    }
+    .remove-btn:hover { color: var(--danger); }
+
+    /* ── Results grid ────────────────────────────────────────── */
+    #results {
+      display: none; margin-top: 2.5rem;
+      animation: fadeUp .6s ease both;
+    }
+    .result-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem;
+    }
+    @media (max-width: 640px) { .result-grid { grid-template-columns: 1fr; } }
+
+    .result-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; overflow: hidden;
+    }
+    .result-card .card-head {
+      padding: .85rem 1.2rem; border-bottom: 1px solid var(--border);
+      font-size: .72rem; font-family: 'DM Mono', monospace;
+      letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .result-card .card-head .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+    }
+    .result-card img { width: 100%; display: block; object-fit: contain; background: var(--surface); }
+
+    /* ── Verdict panel ───────────────────────────────────────── */
+    .verdict-panel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.8rem 2rem;
+      margin-top: 1.2rem;
+    }
+    .verdict-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem;
+    }
+    .verdict-label {
+      font-family: 'DM Serif Display', serif; font-size: 2rem;
+    }
+    .verdict-label.positive { color: var(--danger); }
+    .verdict-label.negative { color: var(--safe);   }
+
+    .verdict-badge {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .45rem 1rem; border-radius: 999px;
+      font-size: .78rem; font-weight: 600; letter-spacing: .04em;
+    }
+    .verdict-badge.positive { background: rgba(248,113,113,.12); color: var(--danger); border: 1px solid rgba(248,113,113,.25); }
+    .verdict-badge.negative { background: rgba(52,211,153,.12);  color: var(--safe);   border: 1px solid rgba(52,211,153,.25); }
+    .verdict-badge::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
+
+    /* Confidence bar */
+    .conf-label {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: .5rem; font-size: .82rem; color: var(--muted);
+    }
+    .conf-value { font-family: 'DM Mono', monospace; font-size: 1.1rem; color: var(--text); }
+    .bar-track {
+      height: 8px; background: var(--surface); border-radius: 999px;
+      overflow: hidden; margin-bottom: 1.6rem;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 999px;
+      transition: width 1s cubic-bezier(.16,1,.3,1);
+      width: 0;
+    }
+    .bar-fill.positive { background: linear-gradient(90deg, #f87171, #fca5a5); }
+    .bar-fill.negative { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+
+    /* Stats row */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .stat {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem;
+      text-align: center;
+    }
+    .stat .val {
+      font-family: 'DM Mono', monospace; font-size: 1.25rem;
+      font-weight: 500; color: var(--text); margin-bottom: .3rem;
+    }
+    .stat .key { font-size: .72rem; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+
+    /* Disclaimer */
+    .disclaimer {
+      margin-top: 1.4rem; padding: 1rem 1.2rem; border-radius: 12px;
+      background: rgba(56,189,248,.05); border: 1px solid rgba(56,189,248,.12);
+      font-size: .8rem; color: var(--muted); line-height: 1.6;
+    }
+    .disclaimer strong { color: var(--accent); }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    footer {
+      text-align: center; padding: 3rem 0 2rem;
+      border-top: 1px solid var(--border);
+      margin-top: 4rem;
+    }
+    .footer-stack {
+      font-size: .78rem; color: var(--muted); margin-bottom: 2rem;
+      letter-spacing: .03em;
+    }
+    .footer-team-label {
+      font-family: 'DM Mono', monospace; font-size: .65rem;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: center; gap: .75rem;
+    }
+    .footer-team-label::before,
+    .footer-team-label::after {
+      content: ''; flex: 1; max-width: 80px;
+      height: 1px; background: var(--border);
+    }
+    .team-grid {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem;
+      margin-bottom: 1.5rem;
+    }
+    .team-chip {
+      display: flex; align-items: center; gap: .55rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 999px; padding: .45rem 1rem;
+      transition: border-color .25s, box-shadow .25s;
+    }
+    .team-chip:hover {
+      border-color: rgba(56,189,248,.4);
+      box-shadow: 0 0 14px rgba(56,189,248,.1);
+    }
+    .team-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: grid; place-items: center;
+      font-size: .65rem; font-weight: 700; color: #0a0e17;
+      flex-shrink: 0;
+    }
+    .team-name {
+      font-size: .78rem; font-weight: 500; color: var(--text);
+      letter-spacing: .02em;
+    }
+    .footer-copy {
+      font-size: .7rem; color: var(--muted); opacity: .6;
+    }
+
+    /* ── Animations ──────────────────────────────────────────── */
+    @keyframes fadeUp   { from { opacity:0; transform: translateY(24px); } to { opacity:1; transform: none; } }
+    @keyframes fadeDown { from { opacity:0; transform: translateY(-16px);} to { opacity:1; transform: none; } }
+
+    /* ── Error toast ─────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: #1e1e2e; border: 1px solid var(--danger); color: var(--danger);
+      padding: .75rem 1.4rem; border-radius: 12px; font-size: .85rem;
+      transition: transform .4s cubic-bezier(.16,1,.3,1), opacity .4s;
+      opacity: 0; z-index: 999; pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div class="orb"></div>
+<div class="orb orb2"></div>
+
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🫁</div>
+      <div>
+        <div class="logo-text">TBDetect</div>
+        <div class="logo-sub">AI Screening System</div>
+      </div>
+    </div>
+    <span class="badge">v1.0 · LeNet · Grad-CAM</span>
+  </header>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Tuberculosis Detection<br><em>from Chest X-Rays</em></h1>
+    <p>Upload a chest radiograph and receive an AI-assisted TB screening result with Grad-CAM visual explanation in seconds.</p>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-section">
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="image/*" />
+      <div class="drop-icon">📤</div>
+      <h3>Drop your chest X-ray here</h3>
+      <p>or click to browse your files</p>
+      <div class="formats">
+        <span>JPG</span><span>PNG</span><span>JPEG</span><span>BMP</span><span>TIFF</span>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div id="preview-strip">
+      <img id="preview-img" src="" alt="Preview" />
+      <button class="remove-btn" id="removeBtn">✕ Remove</button>
+    </div>
+
+    <!-- Analyze button -->
+    <button class="btn-analyze" id="analyzeBtn" disabled>
+      <span id="btn-text">Upload an image to analyze</span>
+    </button>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+
+    <!-- Image pair -->
+    <div class="result-grid">
+      <div class="result-card">
+        <div class="card-head"><span class="dot"></span>Original Radiograph</div>
+        <img id="res-original" src="" alt="Original" />
+      </div>
+      <div class="result-card">
+        <div class="card-head"><span class="dot"></span>Grad-CAM Explanation</div>
+        <img id="res-gradcam" src="" alt="Grad-CAM" />
+      </div>
+    </div>
+
+    <!-- Verdict -->
+    <div class="verdict-panel">
+      <div class="verdict-header">
+        <div>
+          <div id="verdict-label" class="verdict-label">—</div>
+          <div style="font-size:.85rem;color:var(--muted);margin-top:.3rem;">AI Prediction Result</div>
+        </div>
+        <div id="verdict-badge" class="verdict-badge">—</div>
+      </div>
+
+      <div class="conf-label">
+        <span>Model Confidence</span>
+        <span class="conf-value" id="conf-pct">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="conf-bar"></div></div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="val" id="stat-prob">—</div>
+          <div class="key">Raw Probability</div>
+        </div>
+        <div class="stat">
+          <div class="val" id="stat-conf">—</div>
+          <div class="key">Confidence %</div>
+        </div>
+        <div class="stat">
+          <div class="val" id="stat-class">—</div>
+          <div class="key">Predicted Class</div>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        <strong>⚕ Clinical Disclaimer:</strong> This tool is intended as a screening aid only. 
+        All results must be reviewed and confirmed by a qualified radiologist or physician before 
+        any clinical decision is made. Do not use as a sole diagnostic resource.
+      </div>
+    </div>
+
+  </div><!-- /results -->
+
+  <footer>
+    <div class="footer-stack">
+      Built with Keras · TensorFlow · Grad-CAM &nbsp;|&nbsp; TB Detection Research Project
+    </div>
+
+    <div class="footer-team-label">Project Team</div>
+
+    <div class="team-grid">
+      <div class="team-chip">
+        <div class="team-avatar">HP</div>
+        <span class="team-name">Harsh Prasad</span>
+      </div>
+      <div class="team-chip">
+        <div class="team-avatar">BK</div>
+        <span class="team-name">Biswesh Kumar Padhy</span>
+      </div>
+      <div class="team-chip">
+        <div class="team-avatar">SS</div>
+        <span class="team-name">Shivank Subanshi</span>
+      </div>
+      <div class="team-chip">
+        <div class="team-avatar">AM</div>
+        <span class="team-name">Aman Kumar Mishra</span>
+      </div>
+    </div>
+
+    <div class="footer-copy">© 2026 TBDetect · AI-Powered Tuberculosis Screening</div>
+  </footer>
+
+</div><!-- /page -->
+
+<div id="toast"></div>
+
+<script>
+  // ── Config ────────────────────────────────────────────────────
+  const API_URL = "http://localhost:5000/predict";   // ← change if hosted elsewhere
+
+  // ── DOM refs ──────────────────────────────────────────────────
+  const dropZone   = document.getElementById("dropZone");
+  const fileInput  = document.getElementById("fileInput");
+  const previewStrip = document.getElementById("preview-strip");
+  const previewImg = document.getElementById("preview-img");
+  const removeBtn  = document.getElementById("removeBtn");
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const btnText    = document.getElementById("btn-text");
+  const results    = document.getElementById("results");
+  const toast      = document.getElementById("toast");
+
+  let selectedFile = null;
+
+  // ── Drag-and-drop ────────────────────────────────────────────
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave",  ()  => dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault(); dropZone.classList.remove("drag-over");
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+  fileInput.addEventListener("change", () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+  function setFile(f) {
+    if (!f.type.startsWith("image/")) { showToast("Please upload a valid image file."); return; }
+    selectedFile = f;
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewStrip.style.display = "block";
+      analyzeBtn.disabled = false;
+      btnText.textContent = "Analyze Chest X-Ray";
+      results.style.display = "none";
+    };
+    reader.readAsDataURL(f);
+  }
+
+  removeBtn.addEventListener("click", () => {
+    selectedFile = null;
+    fileInput.value = "";
+    previewStrip.style.display = "none";
+    analyzeBtn.disabled = true;
+    btnText.textContent = "Upload an image to analyze";
+    results.style.display = "none";
+  });
+
+  // ── Analyze ──────────────────────────────────────────────────
+  analyzeBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+
+    // Loading state
+    analyzeBtn.disabled = true;
+    btnText.innerHTML = '<div class="spinner"></div> Analyzing…';
+
+    const fd = new FormData();
+    fd.append("image", selectedFile);
+
+    try {
+      const res  = await fetch(API_URL, { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const data = await res.json();
+      renderResults(data);
+    } catch (err) {
+      showToast("Could not connect to the prediction server. Is it running?");
+      console.error(err);
+    } finally {
+      analyzeBtn.disabled = false;
+      btnText.textContent = "Analyze Chest X-Ray";
+    }
+  });
+
+  // ── Render results ────────────────────────────────────────────
+  function renderResults(d) {
+    const isPos   = d.label === "Tuberculosis";
+    const cls     = isPos ? "positive" : "negative";
+    const pct     = d.confidence.toFixed(1);
+
+    // Images
+    document.getElementById("res-original").src = `data:image/png;base64,${d.original}`;
+    if (d.gradcam) {
+      document.getElementById("res-gradcam").src  = `data:image/png;base64,${d.gradcam}`;
+    } else {
+      document.getElementById("res-gradcam").alt = "Grad-CAM not available (no model loaded)";
+    }
+
+    // Verdict
+    const vl = document.getElementById("verdict-label");
+    vl.textContent = d.label;
+    vl.className   = `verdict-label ${cls}`;
+
+    const vb = document.getElementById("verdict-badge");
+    vb.textContent = isPos ? "TB Positive" : "Normal";
+    vb.className   = `verdict-badge ${cls}`;
+
+    // Confidence bar (animate after display)
+    document.getElementById("conf-pct").textContent = `${pct}%`;
+    const bar = document.getElementById("conf-bar");
+    bar.className = `bar-fill ${cls}`;
+    bar.style.width = "0";
+    setTimeout(() => { bar.style.width = `${pct}%`; }, 100);
+
+    // Stats
+    document.getElementById("stat-prob").textContent  = d.probability.toFixed(4);
+    document.getElementById("stat-conf").textContent  = `${pct}%`;
+    document.getElementById("stat-class").textContent = d.label;
+
+    results.style.display = "block";
+    results.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 4000);
+  }
+</script>
+</body>
+</html>
